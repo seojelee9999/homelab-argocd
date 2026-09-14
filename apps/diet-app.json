@@ -1,0 +1,7 @@
+{
+  "appName": "diet-app",
+  "repoURL": "git@github.com:seojelee9999/diet-app-menifest.git",
+  "targetRevision": "HEAD",
+  "path": ".",
+  "namespace": "diet-app"
+}
