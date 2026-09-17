@@ -6,7 +6,7 @@ metadata:
 spec:
   generators:
     - git:
-        repoURL: "git@github.com:seojelee9999/homelab-argocd.git"
+        repoURL: "https://github.com/seojelee9999/homelab-argocd.git"
         revision: "HEAD"
         files:
           - path: "apps/*.json"
