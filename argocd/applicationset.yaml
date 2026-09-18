@@ -18,7 +18,7 @@ spec:
       source:
         repoURL: "{{repoURL}}"
         targetRevision: "{{targetRevision}}"
-        path: "{{mainfest_path}}"
+        path: "{{manifest_path}}"
       destination:
         server: "https://kubernetes.default.svc"
         namespace: "{{namespace}}"
