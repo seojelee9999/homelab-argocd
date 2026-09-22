@@ -149,20 +149,31 @@ EOF
 manifest 요청은 HTTP `403`이었다. 로그인 성공만으로 image pull 권한이
 검증되는 것은 아니며, 실제 manifest 요청 성공 여부가 근거가 된다.
 
-GitHub에서 classic PAT를 만들고 최소 `read:packages` 권한을 부여한다. 토큰은
-명령행 인자로 넣지 않고 숨김 입력으로 받은 뒤 Secret을 생성한다.
+사용자가 cp-01의 `/tmp/diet-ghcr-read-pat`에 저장한 새 PAT(권한 0600)로
+GHCR token 발급 후 SHA 이미지 manifest를 요청해 HTTP 200을 확인했다.
+인증 검증에는 Python `urllib.request`로 다음 두 URL을 순서대로 호출했다.
+
+- `https://ghcr.io/token?service=ghcr.io&scope=repository%3Aseojelee9999%2Fdiet-app%3Apull` (Basic 인증)
+- `https://ghcr.io/v2/seojelee9999/diet-app/manifests/5d03adaba836a5fd712e3ebb9dc5c521b12b8a5c` (발급받은 Bearer token)
+
+아래는 실제 등록과 동일하게 토큰을 파일에서 읽고 Secret JSON을 stdin으로
+전달하는 재현 명령이다. cp-01에서 실행하며 원문을 화면이나 프로세스 인자에
+출력하지 않는다. PAT는 패키지 접근 권한과 `read:packages` 권한이 필요하다.
 
 ```bash
-read -rsp 'GHCR read:packages PAT: ' GHCR_TOKEN
-echo
-
-kubectl -n diet-app create secret docker-registry ghcr-pull \
-  --docker-server=ghcr.io \
-  --docker-username=seojelee9999 \
-  --docker-password="$GHCR_TOKEN" \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-unset GHCR_TOKEN
+set -o pipefail
+python3 - <<'PY' | kubectl apply -f -
+import base64, json, pathlib
+pat = pathlib.Path('/tmp/diet-ghcr-read-pat').read_text().strip()
+auth = base64.b64encode(('seojelee9999:' + pat).encode()).decode()
+config = json.dumps({'auths': {'ghcr.io': {'auth': auth}}})
+print(json.dumps({
+    'apiVersion': 'v1', 'kind': 'Secret',
+    'metadata': {'name': 'ghcr-pull', 'namespace': 'diet-app'},
+    'type': 'kubernetes.io/dockerconfigjson',
+    'data': {'.dockerconfigjson': base64.b64encode(config.encode()).decode()}
+}))
+PY
 ```
 
 Secret 원문을 출력하지 않는 검증:
@@ -235,11 +246,49 @@ GitOps 소스 전환 뒤 실제 관찰 결과:
 | PVC/PV | `diet-app-data` / `diet-app-data`, `Bound` |
 | Service | `diet-app`, ClusterIP, port 80 |
 | Ingress | `diet-app`, class `nginx`, host `akibaha.shop` |
-| 남은 조건 | `ghcr-pull` Secret 필요 |
+| 인증 | 새 PAT manifest HTTP 200 확인 후 `ghcr-pull` 생성 완료 |
+| 최종 상태 | `Synced / Healthy`, Deployment `1/1`, Pod `1/1 Running` |
 
-새 Pod의 최종 이벤트는 익명 GHCR token 요청에 대한 `401 Unauthorized`와
+인증 등록 전 새 Pod의 이벤트는 익명 GHCR token 요청에 대한 `401 Unauthorized`와
 `FailedToRetrieveImagePullSecret (ghcr-pull)`이었다. 이는 GitOps와 스토리지는
 정상 적용됐고 private registry 자격 증명만 남았다는 직접적인 근거다.
+
+Secret 등록 후 기존 Pod의 backoff 대기를 줄이기 위해 실행하지 못한 Pod만
+삭제했다. ReplicaSet이 새 Pod를 만들었고 이미지를 6.56초에 가져왔다.
+PVC나 데이터는 삭제하지 않았다.
+
+```bash
+kubectl -n diet-app delete pod diet-app-586f6f55cf-2l7r4
+kubectl -n diet-app rollout status deployment/diet-app --timeout=50s
+kubectl -n diet-app get pods,pvc,svc,ingress -o wide
+kubectl -n argocd get application diet-app
+kubectl -n diet-app get endpointslice -l kubernetes.io/service-name=diet-app
+```
+
+결과: rollout 성공, 새 Pod `diet-app-586f6f55cf-7g4c8`가 worker-01에서
+`1/1 Running`, endpoint `172.16.171.21:8080`, Application `Synced / Healthy`.
+
+cp-01에서 실제 사용한 HTTP 검증 명령:
+
+```bash
+# Service 라우팅 및 DB health 검증
+curl -fsS --max-time 10 http://10.111.10.243/healthz
+# nginx host 라우팅 검증
+curl -fsS --max-time 10 -H 'Host: akibaha.shop' http://192.168.55.10:31208/healthz
+# 메인 화면 제공 검증
+curl -fsS --max-time 10 -H 'Host: akibaha.shop' http://192.168.55.10:31208/ | head -c 160
+# Pod 내부에서 클러스터 DNS 및 Service 접근 검증
+kubectl -n diet-app exec deployment/diet-app -- python -c \
+  'import urllib.request; print(urllib.request.urlopen("http://diet-app.diet-app.svc.cluster.local/healthz",timeout=10).read().decode())'
+```
+
+세 health 요청 모두 `{"status": "ok"}`를 반환했고 메인 화면은 HTML을 반환했다.
+외부 인터넷의 DNS/NAT/TLS 및 브라우저 상호작용은 이 검증에 포함되지 않는다.
+브라우저로 로컬 확인하려면 cp-01에서
+`kubectl -n diet-app port-forward --address=127.0.0.1 service/diet-app 8080:80`을
+실행하고 사용자 PC에서
+`ssh -L 18080:127.0.0.1:8080 ubuntu@192.168.55.10`으로 연결한 뒤
+`http://localhost:18080`을 연다.
 
 ## 8. 재발 시 트러블슈팅 명령과 선택 근거
 
