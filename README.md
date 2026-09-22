@@ -32,10 +32,10 @@ apps/*.json
 각 manifest 저장소의 Kubernetes 리소스
 ```
 
-현재 `diet-app`은 다음 두 저장소를 사용한다.
+현재 `diet-app`은 다음 두 저장소 역할로 구성된다.
 
 - ApplicationSet 및 앱 목록: `https://github.com/seojelee9999/homelab-argocd.git`
-- diet-app Kubernetes manifest: `https://github.com/seojelee9999/diet-app-menifest.git`
+- 애플리케이션과 Kubernetes manifest: `https://github.com/seojelee9999/diet-app.git`의 `deploy/`
 
 ## 저장소 구조
 
@@ -198,9 +198,9 @@ syncPolicy:
 ```json
 {
   "appName": "diet-app",
-  "repoURL": "https://github.com/seojelee9999/diet-app-menifest.git",
+  "repoURL": "https://github.com/seojelee9999/diet-app.git",
   "targetRevision": "HEAD",
-  "manifest_path": ".",
+  "manifest_path": "deploy",
   "namespace": "diet-app"
 }
 ```
@@ -277,7 +277,7 @@ Argo CD의 Git PAT 인증과 Kubernetes의 GHCR 이미지 pull 인증은 서로
 ghcr.io/seojelee9999/<image>:<commit-sha> push
         |
         v
-diet-app-menifest의 image tag 갱신 및 push
+diet-app/deploy/kustomization.yaml의 image tag 갱신 및 push
         |
         v
 Argo CD 자동 sync 및 rollout
