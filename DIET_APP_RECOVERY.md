@@ -186,6 +186,21 @@ kubectl -n argocd annotate application diet-app \
   argocd.argoproj.io/refresh=hard --overwrite
 ```
 
+이번 전환에서는 기존 Deployment가 `RollingUpdate`로 만든 실패 ReplicaSet 2개를
+그대로 유지해 새 `Recreate` ReplicaSet 생성이 진행되지 않았다. 기존 Pod는 각각
+placeholder 이미지 또는 태그 없는 이미지를 사용했고 Ready가 된 적이 없으며
+PVC도 마운트하지 않았다. 다음 명령으로 해당 실패 ReplicaSet만 0으로 축소했다.
+
+```bash
+kubectl -n diet-app scale replicaset \
+  diet-app-c8f5fd757 diet-app-db95dbf7f --replicas=0
+```
+
+그 결과 Deployment controller가 SHA 이미지의 새 ReplicaSet
+`diet-app-586f6f55cf`를 생성했다. 일반적인 정상 rollout에서는 이 명령이 필요
+없다. 실행 전 반드시 `kubectl -n diet-app get rs -o wide`와 owner reference로
+대상이 현재 Deployment의 이전 ReplicaSet인지 확인한다.
+
 아래 순서로 상태를 확인한다.
 
 ```bash
@@ -207,7 +222,26 @@ kubectl -n diet-app run diet-app-smoke --rm -i --restart=Never \
 5. Service에 ready EndpointSlice가 존재
 6. 클러스터 내부 `/healthz` 응답이 `{"status": "ok"}`
 
-## 7. 재발 시 트러블슈팅 명령과 선택 근거
+## 7. 2026-09-23 적용 결과
+
+GitOps 소스 전환 뒤 실제 관찰 결과:
+
+| 항목 | 결과 |
+|---|---|
+| Argo CD source | `https://github.com/seojelee9999/diet-app.git`, path `deploy` |
+| Sync | `Synced`, revision `be1effa5e62efc5323ff8f6ddb8b2f6d4dbca0b9` |
+| 이미지 | `ghcr.io/seojelee9999/diet-app:5d03adaba836a5fd712e3ebb9dc5c521b12b8a5c` |
+| Deployment | replica 1, strategy `Recreate`, pull secret `ghcr-pull` |
+| PVC/PV | `diet-app-data` / `diet-app-data`, `Bound` |
+| Service | `diet-app`, ClusterIP, port 80 |
+| Ingress | `diet-app`, class `nginx`, host `akibaha.shop` |
+| 남은 조건 | `ghcr-pull` Secret 필요 |
+
+새 Pod의 최종 이벤트는 익명 GHCR token 요청에 대한 `401 Unauthorized`와
+`FailedToRetrieveImagePullSecret (ghcr-pull)`이었다. 이는 GitOps와 스토리지는
+정상 적용됐고 private registry 자격 증명만 남았다는 직접적인 근거다.
+
+## 8. 재발 시 트러블슈팅 명령과 선택 근거
 
 ```bash
 # Git 선언 상태와 실제 리소스 health를 분리해 확인한다.
