@@ -1,6 +1,6 @@
 {
   "appName": "diet-app",
-  "repoURL": "https://github.com/seojelee9999/diet-app.git",
+  "repoURL": "https://github.com/seojelee9999/diet-app-menifest.git",
   "targetRevision": "HEAD",
   "manifest_path": "deploy",
   "namespace": "diet-app"

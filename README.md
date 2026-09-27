@@ -53,12 +53,26 @@ apps/*.json
 - `argocd/applicationset.yaml`: `apps/*.json`을 읽는 ApplicationSet
 - `apps/*.json`: 생성할 Application별 저장소, revision, path, namespace 설정
 
-## 1. Argo CD 설치
+## 1. Argo CD 설치 및 GitOps 부트스트랩
 
-Argo CD 자체는 Ansible 저장소의 `deploy_argocd.yml`로 설치한다.
+Ansible 저장소의 `deploy_argocd.yml`이 Argo CD 설치, PAT 인증 등록,
+Root Application 생성을 순서대로 수행한다. 명령은 Ansible 저장소에서 실행한다.
+
+먼저 `deploy-vault.yaml`에 아래 변수를 Ansible Vault로 암호화해 저장한다.
+PAT에는 `homelab-argocd`와 읽어야 할 private 앱 저장소의
+`Contents: Read-only` 권한을 부여한다.
+
+```yaml
+vault_argocd_repository_pat: <GitHub PAT>
+```
+
+파일 전체를 암호화해서 관리한다면, 기존 파일이 평문일 때 최초 한 번
+`ansible-vault encrypt deploy-vault.yaml`을 실행하고
+`ansible-vault edit deploy-vault.yaml`로 변수를 추가한다. 실제 PAT를 평문으로
+Git에 커밋하지 않는다. 기존 SSH 키 변수는 이 playbook에서 더 이상 사용하지 않는다.
 
 ```bash
-ansible-playbook -i inventory.ini deploy_argocd.yml
+ansible-playbook -i inventory.ini deploy_argocd.yml --ask-vault-pass
 ```
 
 playbook은 다음 작업을 수행한다.
@@ -68,6 +82,11 @@ playbook은 다음 작업을 수행한다.
 - Helm으로 Argo CD 설치 또는 업그레이드
 - Argo CD 컴포넌트를 worker node에 배치
 - Argo CD Server를 NodePort로 노출
+- `github-seojelee9999-repo-creds` Secret에 HTTPS + PAT 인증 등록
+- `main` 브랜치의 `argocd/`를 감시하는 `homelab-root` Application 생성
+
+PAT가 누락되면 클러스터를 변경하기 전에 중단한다. 아래 2~3절의 수동
+등록은 playbook을 실행했다면 별도로 수행할 필요가 없다.
 
 설치 확인:
 
@@ -76,7 +95,7 @@ kubectl -n argocd get pods
 kubectl -n argocd get svc
 ```
 
-## 2. GitHub PAT 인증
+## 2. GitHub PAT 인증 (수동 등록 시)
 
 여러 저장소에서 같은 GitHub 계정의 PAT를 사용하기 위해 개별
 `repository` Secret 대신 URL prefix 기반의 `repo-creds` Secret을 사용한다.
@@ -96,7 +115,7 @@ echo
 
 kubectl -n argocd create secret generic github-seojelee9999-repo-creds \
   --from-literal=type=git \
-  --from-literal=url='https://github.com/seojelee9999' \
+  --from-literal=url='https://github.com/seojelee9999/' \
   --from-literal=username='seojelee9999' \
   --from-literal=password="$GITHUB_PAT" \
   --dry-run=client -o yaml |
@@ -115,10 +134,9 @@ kubectl -n argocd get secret github-seojelee9999-repo-creds \
   --show-labels
 ```
 
-현재 클러스터의 PAT Secret은 위 절차로 수동 등록한 상태다. Ansible
-저장소의 `deploy_argocd.yml`은 아직 SSH Deploy Key 방식이므로 클러스터를
-완전히 재구축해도 같은 결과가 필요하다면 해당 playbook도 HTTPS
-`repo-creds` 방식으로 변경하고 PAT는 Ansible Vault에서 공급해야 한다.
+`deploy_argocd.yml`은 같은 이름의 Secret을 생성하거나 갱신하며, PAT는
+`deploy-vault.yaml`의 `vault_argocd_repository_pat`에서 공급한다.
+기존에 수동 등록한 Secret도 playbook 실행 시 해당 값으로 갱신된다.
 
 동일 URL prefix의 `repo-creds` Secret을 두 개 이상 만들지 않는다. 중복
 Secret에 만료되거나 잘못된 토큰이 있으면 Argo CD가 해당 토큰을 선택해
@@ -137,9 +155,10 @@ kubectl -n argocd label secret <old-secret-name> \
   argocd.argoproj.io/secret-type-
 ```
 
-## 3. Root Application 부트스트랩
+## 3. Root Application 부트스트랩 (수동 등록 시)
 
-최초 한 번 `homelab-root` Application을 등록한다.
+playbook을 사용하지 않는 경우 이 저장소에서 최초 한 번
+`homelab-root` Application을 등록한다.
 
 ```bash
 kubectl apply -f bootstrap/root-application.yaml
