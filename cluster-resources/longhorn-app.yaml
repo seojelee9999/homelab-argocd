@@ -6,13 +6,13 @@ metadata:
 spec:
   project: default
   source:
-  repoURL: https://charts.longhorn.io
-  targetRevision: 1.6.2
-  chart: longhorn
-  helm:
-    values: |
-      persistence:
-        defaultClass: true
+    repoURL: https://charts.longhorn.io
+    targetRevision: 1.6.2
+    chart: longhorn
+    helm:
+      values: |
+        persistence:
+          defaultClass: true
   destination:
     server: https://kubernetes.default.svc
     namespace: longhorn-system
