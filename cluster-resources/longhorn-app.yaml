@@ -18,11 +18,12 @@ spec:
       values: |
         persistence:
           defaultClass: true
+        preUpgradeChecker:
+          jobEnabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: longhorn-system
-syncPolicy:
-  automated:
-    prune: true
-    selfHeal: true
-  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
