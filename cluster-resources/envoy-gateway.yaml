@@ -14,6 +14,9 @@ spec:
     chart: gateway-helm
     repoURL: registry-1.docker.io/envoyproxy  # 혹은 oci://docker.io/envoyproxy
     targetRevision: v1.9.2
+    helm:
+      values: |
+        enableExperimental: true
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy-gateway-system
@@ -21,3 +24,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+    - ServerSideApply=true
