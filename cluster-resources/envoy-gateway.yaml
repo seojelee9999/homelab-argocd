@@ -12,11 +12,8 @@ spec:
   project: default
   source:
     chart: gateway-helm
-    repoURL: oci://docker.io/envoyproxy
+    repoURL: registry-1.docker.io/envoyproxy  # 혹은 oci://docker.io/envoyproxy
     targetRevision: v1.9.2
-    helm:
-      values: |
-        # 필요한 커스텀 설정이 있다면 여기에 작성
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy-gateway-system
