@@ -327,6 +327,87 @@ ansible-playbook -i inventory.ini register_diet_ghcr.yml
 변경될 때 manifest도 변경되므로 Argo CD가 새 배포를 명확하게 감지할 수
 있다.
 
+## 8. Envoy Gateway 설치 (Argo CD + Helm)
+
+Gateway API를 사용하려면 리소스 타입을 등록하는 **CRD**와 실제 프록시를
+관리하는 **컨트롤러**가 모두 필요하다. Helm은 필수는 아니지만, 이 저장소는
+`argocd/envoy-gateway.yaml`에서 공식 OCI Helm 차트를 Argo CD로 관리한다.
+로컬에서 별도로 `helm install`을 실행할 필요는 없다.
+
+- 차트: `oci://docker.io/envoyproxy/gateway-helm`, 버전: `v1.6.7`
+- 설치 namespace: `envoy-gateway-system`
+- Gateway API 및 Envoy Gateway CRD를 함께 설치한다.
+- 큰 CRD의 annotation 크기 제한을 피하도록 `ServerSideApply=true`를 사용한다.
+- `homelab-root`가 감시하는 `argocd/`에 있으므로 Git 반영 후 자동 배포된다.
+
+현재 클러스터는 **Kubernetes v1.30.14 + Calico**이며, Kubernetes
+1.30~1.33과 호환되는 Envoy Gateway v1.6.7로 고정했다. Calico를 교체할
+필요는 없다. 다만 v1.6 계열은 **2026-05-13에 지원 종료(EOL)**되었으므로
+장기 운영에는 Kubernetes를 업그레이드하고 유지보수 중인 Envoy Gateway로
+전환하는 것을 권장한다. v1.9 계열은 Kubernetes 1.33~1.36이 대상이다.
+[호환성 표](https://gateway.envoyproxy.io/news/releases/matrix/)를 확인한다.
+기존 CRD가 없는 클러스터를 기준으로 구성했다.
+이미 다른 도구가 Gateway API CRD를 관리한다면 중복 소유하지 않도록
+[공식 설치 지침](https://gateway.envoyproxy.io/docs/install/install-helm/)에
+따라 CRD 관리를 분리한다. v1.6 차트에서는 `helm.skipCrds: true`로
+번들 CRD 설치를 제외하고 필요한 CRD를 별도로 관리할 수 있다.
+
+수동으로 Application을 먼저 등록하려면:
+
+```bash
+kubectl apply -f argocd/envoy-gateway.yaml
+kubectl -n argocd get application envoy-gateway
+```
+
+Argo CD sync로 Deployment가 생성된 뒤 컨트롤러와 CRD 준비를 확인한다.
+
+```bash
+kubectl -n envoy-gateway-system rollout status deployment/envoy-gateway --timeout=300s
+kubectl wait --for=condition=Established --timeout=120s \
+  crd/gatewayclasses.gateway.networking.k8s.io \
+  crd/gateways.gateway.networking.k8s.io \
+  crd/httproutes.gateway.networking.k8s.io
+```
+
+### Gateway와 앱 라우팅
+
+`cluster-resources/gateway-system.yaml`은 `envoy` GatewayClass와
+`gateway-system/envoy-gateway` Gateway를 정의한다.
+`soulin.xyz/diet-app` 요청은 `diet-app` namespace의 `diet-app:80`
+Service로 전달된다. `/diet-app` 경로는 그대로 전달하므로 앱에서도 해당
+경로를 지원해야 한다. `diet-app` namespace와 Service는 앱 배포로 먼저
+준비되어 있어야 한다.
+
+HTTPS listener는 `gateway-system` namespace의 `soulin-xyz-tls` Secret을
+참조한다. `soulin.xyz`에 유효한 인증서와 키로 먼저 생성하거나 cert-manager로
+같은 이름의 Secret을 발급한다. 인증서와 개인키는 Git에 저장하지 않는다.
+
+```bash
+kubectl create namespace gateway-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n gateway-system create secret tls soulin-xyz-tls \
+  --cert=/path/to/fullchain.pem --key=/path/to/privkey.pem
+kubectl apply -f cluster-resources/gateway-system.yaml
+kubectl get gatewayclass envoy
+kubectl -n gateway-system get gateway envoy-gateway
+kubectl -n diet-app describe httproute diet-app-route
+kubectl -n envoy-gateway-system get svc
+```
+
+`cluster-resources/`는 현재 Root Application의 감시 대상이 아니므로 위
+Gateway 파일은 컨트롤러 설치 후 별도로 적용한다. 기존 `cilium-gateway`가
+클러스터에 있다면 새 Gateway 적용만으로 삭제되지는 않는다. Envoy의
+접속을 확인하고 DNS/포트포워딩을 전환한 다음 기존 Gateway를 정리한다.
+
+Envoy가 만드는 트래픽용 Service는 기본적으로 `LoadBalancer`를 사용한다.
+현재 Calico 홈랩에는 MetalLB 등의 외부 IP 할당 및 L2/BGP 광고 구성이
+필요하다. IP가 `Pending`이면 해당
+구성을 확인한다. 공유기 환경에서는 외부 80/443 포트를 이 IP로 전달하고
+`soulin.xyz` DNS를 진입점에 연결한다. 컨트롤러 설치만으로 공인 IP나 DNS,
+인증서가 자동 생성되지는 않는다.
+
+참고: [Envoy Gateway Argo CD 설치](https://gateway.envoyproxy.io/docs/install/install-argocd/),
+[빠른 시작](https://gateway.envoyproxy.io/docs/tasks/quickstart/).
+
 ## 문제 해결
 
 ### Invalid username or token
