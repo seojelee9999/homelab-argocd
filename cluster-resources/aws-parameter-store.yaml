@@ -1,0 +1,20 @@
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: aws-parameter-store
+spec:
+  provider:
+    aws:
+      service: ParameterStore
+      # Must match the region containing the SSM parameters.
+      region: ap-northeast-2
+      auth:
+        secretRef:
+          accessKeyIDSecretRef:
+            name: aws-ssm-credentials
+            namespace: external-secrets
+            key: access-key-id
+          secretAccessKeySecretRef:
+            name: aws-ssm-credentials
+            namespace: external-secrets
+            key: secret-access-key
