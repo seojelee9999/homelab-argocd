@@ -52,7 +52,8 @@ kubectl -n longhorn-system get volumes.longhorn.io
 ```
 
 앱의 기존 SQLite 데이터는 자동 이전하지 않는다. 이번 전환은 빈 DB로 시작한다.
-기존 `diet-app-data` PVC는 사용하지 않으며 자동 삭제하지 않는다.
+기존 `diet-app-data` PVC는 실제 PV가 없는 미사용 Pending 상태였으며,
+새 DB 전환 시 연결된 볼륨과 Pod 참조가 없음을 확인하고 정리한다.
 
 ## 운영
 
