@@ -1,0 +1,7 @@
+# Local credentials, kubeconfig, and scratch files
+.local/
+.secrets/
+.kube/
+.aws/
+*.key
+__pycache__/

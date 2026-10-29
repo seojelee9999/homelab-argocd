@@ -5,6 +5,9 @@ ApplicationSet을 관리한다. 애플리케이션 설정을 `apps/*.json`에 �
 ApplicationSet이 Argo CD Application을 생성하고, 각 manifest 저장소의
 리소스를 대상 namespace에 배포한다.
 
+AWS 키를 Kubernetes Secret으로 수동 등록하고 ESO로 SSM의 GitHub PAT를
+가져오는 절차는 [ESO 설정](docs/external-secrets.md)을 참고한다.
+
 ## 배포 구조
 
 ```text
