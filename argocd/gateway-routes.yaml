@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gateway-routes
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/seojelee9999/homelab-argocd.git
+    targetRevision: main
+    path: gateway-resources
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gateway-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 20
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

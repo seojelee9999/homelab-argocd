@@ -1,0 +1,33 @@
+diff --git a/static/app.js b/static/app.js
+index 3497049..895f67c 100644
+--- a/static/app.js
++++ b/static/app.js
+@@ -15,7 +15,7 @@ let entries = [], goals = {}, week = [], loadVersion = 0, toastTimer, loadContro
+ 
+ async function api(path, method = 'GET', data, signal) {
+   const timeout = AbortSignal.timeout(15000);
+-  const response = await fetch(path, {method, ...(method !== 'GET' ? {headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data ?? {})} : {}), signal: signal ? AbortSignal.any([signal, timeout]) : timeout});
++  const response = await fetch(new URL(path.replace(/^\//, ''), document.baseURI), {method, ...(method !== 'GET' ? {headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data ?? {})} : {}), signal: signal ? AbortSignal.any([signal, timeout]) : timeout});
+   const result = await response.json();
+   if (!response.ok) throw new Error(result.error || '요청을 처리하지 못했습니다.');
+   return result;
+diff --git a/static/index.html b/static/index.html
+index 4160c69..884198f 100644
+--- a/static/index.html
++++ b/static/index.html
+@@ -5,12 +5,12 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <meta name="theme-color" content="#203e35">
+   <title>Mealnote · 나의 식단 기록</title>
+-  <link rel="stylesheet" href="/style.css">
+-  <script src="/app.js" defer></script>
++  <link rel="stylesheet" href="./style.css">
++  <script src="./app.js" defer></script>
+ </head>
+ <body>
+   <aside class="sidebar">
+-    <a class="brand" href="/" aria-label="Mealnote 홈"><span class="brand-mark">m<span>·</span></span>mealnote<span class="brand-dot">.</span></a>
++    <a class="brand" href="./" aria-label="Mealnote 홈"><span class="brand-mark">m<span>·</span></span>mealnote<span class="brand-dot">.</span></a>
+     <div class="workspace">MY PERSONAL SPACE</div>
+     <nav aria-label="메뉴">
+       <button class="nav-item active" id="diary-nav"><span aria-hidden="true">▦</span> 식단 기록 <span class="nav-dot"></span></button>
