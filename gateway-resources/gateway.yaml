@@ -57,6 +57,7 @@ spec:
       filters:
         - type: RequestRedirect
           requestRedirect:
+            scheme: https
             path:
               type: ReplaceFullPath
               replaceFullPath: /diet-app/
