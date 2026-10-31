@@ -45,7 +45,9 @@ metadata:
   namespace: diet-app
 spec:
   parentRefs:
-    - name: tunnel-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: tunnel-gateway
       namespace: gateway-system
   hostnames:
     - akibaha.shop
@@ -73,5 +75,8 @@ spec:
               type: ReplacePrefixMatch
               replacePrefixMatch: /
       backendRefs:
-        - name: diet-app
+        - group: ""
+          kind: Service
+          name: diet-app
           port: 80
+          weight: 1
