@@ -29,3 +29,10 @@ kubectl -n envoy-gateway-system get svc \
 Cloudflare에서 기존 origin을 전환하기 전에 앱과 Gateway가 준비됐는지
 확인한다. TLS는 브라우저와 Cloudflare 사이에서 종료하며, 터널에서
 클러스터 내부 Gateway까지는 HTTP를 사용한다.
+
+관리 화면은 `/grafana/`와 `/argocd/`로 접근한다. Grafana의 하위 경로는
+monitoring Helm values에서 설정한다. Argo CD는 `argocd-cmd-params-cm`의
+`server.rootpath`, `server.basehref`, `server.insecure`를 사용하며,
+설정을 바꾼 후 `argocd-server` Deployment를 재시작해야 한다. Argo CD
+Helm 재설치 또는 업그레이드 시에도 이 값을 유지해야 한다. 서버 자체의
+TLS가 꺼져 있으므로 기존 NodePort의 443도 더 이상 HTTPS가 아니다.
