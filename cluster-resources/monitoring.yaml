@@ -20,6 +20,15 @@ spec:
     helm:
       releaseName: monitoring
       valuesObject:
+        # These components currently expose metrics on loopback only.
+        kubeEtcd:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeProxy:
+          enabled: false
         alertmanager:
           alertmanagerSpec:
             secrets:
