@@ -1,0 +1,22 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: schedule-session
+  namespace: schedule
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: schedule
+  loadBalancer:
+    type: ConsistentHash
+    consistentHash:
+      type: Cookie
+      cookie:
+        name: PLAN_AFFINITY
+        ttl: 86400s
+        attributes:
+          Path: /plan
+          Secure: ""
+          HttpOnly: ""
+          SameSite: Lax

@@ -20,6 +20,14 @@ AWS Parameter Store/ESO 및 Namespace/PVC 보존 구성을 참고한다.
 앱의 상대 정적 파일/API URL과 쿠키 경로를 함께 유지해야 CSRF 세션이 동작한다.
 Cloudflare에서 TLS를 종료하며 리다이렉트에는 HTTPS와 443을 명시한다.
 
+앱의 CSRF 토큰은 각 Pod의 세션에 저장된다. `gateway-resources/schedule-session.yaml`의
+BackendTrafficPolicy가 `PLAN_AFFINITY` 쿠키로 같은 브라우저 요청을 같은 Pod에
+전달하여 2개 복제본에서 간헐적으로 발생하는 403을 방지한다.
+이 정책은 `gateway-routes` Application이 관리하고 schedule HTTPRoute에만 적용한다.
+쿠키는 `/plan` 범위, Secure/HttpOnly/SameSite=Lax, 유효기간 24시간이다.
+Pod 교체나 쿠키 만료로 세션이 바뀌면 페이지를 새로고침해 CSRF 토큰을 다시 받는다.
+설정 근거: [Envoy Gateway v1.6 쿠키 기반 부하 분산](https://gateway.envoyproxy.io/v1.6/tasks/traffic/load-balancing/#cookie).
+
 ## 배포 전 준비
 
 기존 ESO의 `aws-parameter-store` ClusterSecretStore와
