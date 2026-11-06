@@ -1,0 +1,7 @@
+{
+  "appName": "schedule",
+  "repoURL": "https://github.com/seojelee9999/homelab-schedule.git",
+  "targetRevision": "main",
+  "manifest_path": "deploy",
+  "namespace": "schedule"
+}
