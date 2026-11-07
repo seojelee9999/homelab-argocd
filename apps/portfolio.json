@@ -1,0 +1,7 @@
+{
+  "appName": "portfolio",
+  "repoURL": "https://github.com/seojelee9999/homelab-portfolio.git",
+  "targetRevision": "main",
+  "manifest_path": "deploy",
+  "namespace": "portfolio"
+}

@@ -8,6 +8,9 @@ ApplicationSet이 Argo CD Application을 생성하고, 각 manifest 저장소의
 Schedule 앱의 `https://akibaha.shop/plan/` 등록 및 배포 준비 사항은
 [Schedule 배포 안내](docs/schedule.md)를 참고한다.
 
+Portfolio(BookStack)의 `https://akibaha.shop/portfolio/` 등록 및 배포 준비 사항은
+[Portfolio 배포 안내](docs/portfolio.md)를 참고한다.
+
 컨트롤 플레인에서 ESO용 AWS 키 Secret을 등록하는 플레이북은 별도
 `~/ansible` 저장소의 `register-aws-credentials.yml`이며,
 사용법은 같은 저장소의 `AWS_ESO_SECRET.md`를 참고한다.
