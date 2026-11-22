@@ -1,0 +1,84 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+
+  source:
+    repoURL: https://grafana-community.github.io/helm-charts
+    chart: loki
+    targetRevision: 21.4.2
+
+    helm:
+      releaseName: loki
+      valuesObject:
+        deploymentMode: Monolithic
+
+        loki:
+          auth_enabled: false
+
+          commonConfig:
+            replication_factor: 2
+
+          schemaConfig:
+            configs:
+              - from: "2024-04-01"
+                store: tsdb
+                object_store: filesystem
+                schema: v13
+                index:
+                  prefix: loki_index_
+                  period: 24h
+
+          storage:
+            type: filesystem
+
+          limits_config:
+            retention_period: 168h
+
+          compactor:
+            retention_enabled: true
+            delete_request_store: filesystem
+
+        singleBinary:
+          replicas: 1
+
+          persistence:
+            enabled: true
+            storageClass: longhorn-database
+            accessModes:
+              - ReadWriteOnce
+            size: 20Gi
+            whenDeleted: Retain
+            whenScaled: Retain
+
+        backend:
+          replicas: 0
+        read:
+          replicas: 0
+        write:
+          replicas: 0
+
+        chunksCache:
+          enabled: false
+        resultsCache:
+          enabled: false
+
+        # Loki Canary 활성화 (validate.yaml 에러 우회)
+        lokiCanary:
+          enabled: true
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
