@@ -48,7 +48,7 @@ spec:
             delete_request_store: filesystem
 
         singleBinary:
-          replicas: 1
+          replicas: 2
 
           persistence:
             enabled: true
