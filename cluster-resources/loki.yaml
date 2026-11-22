@@ -71,8 +71,9 @@ spec:
         resultsCache:
           enabled: false
 
+        # Loki Canary 활성화 (validate.yaml 에러 우회)
         lokiCanary:
-          enabled: false
+          enabled: true
 
   syncPolicy:
     automated:
@@ -81,4 +82,3 @@ spec:
 
     syncOptions:
       - CreateNamespace=true
-      - Validate=false
